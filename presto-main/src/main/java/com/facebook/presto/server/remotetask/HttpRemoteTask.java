@@ -199,6 +199,9 @@ public final class HttpRemoteTask
 
     private final TableWriteInfo tableWriteInfo;
 
+    private final AtomicLong remoteTaskSize = new AtomicLong();
+    private final HttpRemoteTaskMBean httpRemoteTaskMBean;
+
     public HttpRemoteTask(
             Session session,
             TaskId taskId,
@@ -284,6 +287,8 @@ public final class HttpRemoteTask
                     .map(PlanNode::getId)
                     .collect(toImmutableSet());
 
+            // inject the task class to the bean definition
+            this.httpRemoteTaskMBean = new HttpRemoteTaskMBean(this);
             for (Entry<PlanNodeId, Split> entry : requireNonNull(initialSplits, "initialSplits is null").entries()) {
                 ScheduledSplit scheduledSplit = new ScheduledSplit(nextSplitId.getAndIncrement(), entry.getKey(), entry.getValue());
                 pendingSplits.put(entry.getKey(), scheduledSplit);
@@ -688,6 +693,7 @@ public final class HttpRemoteTask
                 outputBuffers.get(),
                 writeInfo);
         byte[] taskUpdateRequestJson = taskUpdateRequestCodec.toBytes(updateRequest);
+        remoteTaskSize.addAndGet(taskUpdateRequestJson.length);
 
         if (taskUpdateRequestJson.length > maxTaskUpdateSizeInBytes) {
             failTask(new PrestoException(EXCEEDED_TASK_UPDATE_SIZE_LIMIT, format("TaskUpdate size of %d Bytes has exceeded the limit of %d Bytes", taskUpdateRequestJson.length, maxTaskUpdateSizeInBytes)));
@@ -1051,5 +1057,15 @@ public final class HttpRemoteTask
         else {
             log.error(t, format, args);
         }
+    }
+
+    public HttpRemoteTaskMBean getHttpRemoteTaskMBean()
+    {
+        return httpRemoteTaskMBean;
+    }
+
+    public long getTaskUpdateRequestSize()
+    {
+        return remoteTaskSize.get();
     }
 }

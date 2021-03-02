@@ -31,6 +31,7 @@ import com.facebook.presto.execution.TaskInfo;
 import com.facebook.presto.execution.TaskManagerConfig;
 import com.facebook.presto.execution.TaskStatus;
 import com.facebook.presto.execution.buffer.OutputBuffers;
+import com.facebook.presto.execution.resourceGroups.InternalResourceGroup;
 import com.facebook.presto.execution.scheduler.TableWriteInfo;
 import com.facebook.presto.metadata.InternalNode;
 import com.facebook.presto.metadata.MetadataManager;
@@ -45,8 +46,10 @@ import com.facebook.presto.spi.plan.PlanNodeId;
 import com.facebook.presto.sql.planner.PlanFragment;
 import com.google.common.collect.Multimap;
 import io.airlift.units.Duration;
+import org.weakref.jmx.MBeanExporter;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
+import org.weakref.jmx.ObjectNames;
 
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
@@ -90,6 +93,7 @@ public class HttpRemoteTaskFactory
     private final int maxTaskUpdateSizeInBytes;
     private final MetadataManager metadataManager;
     private final QueryManager queryManager;
+    private final MBeanExporter exporter;
 
     @Inject
     public HttpRemoteTaskFactory(
@@ -111,7 +115,8 @@ public class HttpRemoteTaskFactory
             RemoteTaskStats stats,
             InternalCommunicationConfig communicationConfig,
             MetadataManager metadataManager,
-            QueryManager queryManager)
+            QueryManager queryManager,
+            MBeanExporter exporter)
     {
         this.httpClient = httpClient;
         this.locationFactory = locationFactory;
@@ -156,6 +161,7 @@ public class HttpRemoteTaskFactory
 
         this.updateScheduledExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("task-info-update-scheduler-%s"));
         this.errorScheduledExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("remote-task-error-delay-%s"));
+        this.exporter = exporter;
     }
 
     @Managed
@@ -185,7 +191,7 @@ public class HttpRemoteTaskFactory
             boolean summarizeTaskInfo,
             TableWriteInfo tableWriteInfo)
     {
-        return new HttpRemoteTask(
+        HttpRemoteTask httpRemoteTask = new HttpRemoteTask(
                 session,
                 taskId,
                 node.getNodeIdentifier(),
@@ -217,5 +223,11 @@ public class HttpRemoteTaskFactory
                 maxTaskUpdateSizeInBytes,
                 metadataManager,
                 queryManager);
+
+        // generate object name in the format of the nodeid + taskid
+        String objectName = ObjectNames.builder(HttpRemoteTask.class, node.getNodeIdentifier() + "_"+ taskId.toString()).build();
+        exporter.export(objectName, httpRemoteTask.getHttpRemoteTaskMBean());
+
+        return httpRemoteTask;
     }
 }

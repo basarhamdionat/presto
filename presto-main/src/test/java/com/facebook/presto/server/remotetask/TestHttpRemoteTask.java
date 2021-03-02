@@ -69,6 +69,7 @@ import com.google.inject.Provides;
 import io.airlift.units.Duration;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import org.weakref.jmx.MBeanExporter;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -292,7 +293,8 @@ public class TestHttpRemoteTask
                             JsonCodec<PlanFragment> planFragmentJsonCodec,
                             SmileCodec<PlanFragment> planFragmentSmileCodec,
                             JsonCodec<MetadataUpdates> metadataUpdatesJsonCodec,
-                            SmileCodec<MetadataUpdates> metadataUpdatesSmileCodec)
+                            SmileCodec<MetadataUpdates> metadataUpdatesSmileCodec,
+                            MBeanExporter exporter)
                     {
                         JaxrsTestingHttpProcessor jaxrsTestingHttpProcessor = new JaxrsTestingHttpProcessor(URI.create("http://fake.invalid/"), testingTaskResource, jsonMapper, thriftMapper);
                         TestingHttpClient testingHttpClient = new TestingHttpClient(jaxrsTestingHttpProcessor.setTrace(TRACE_HTTP));
@@ -316,7 +318,8 @@ public class TestHttpRemoteTask
                                 new RemoteTaskStats(),
                                 new InternalCommunicationConfig().setThriftTransportEnabled(useThriftEncoding),
                                 createTestMetadataManager(),
-                                new TestQueryManager());
+                                new TestQueryManager(),
+                                exporter);
                     }
                 });
         Injector injector = app

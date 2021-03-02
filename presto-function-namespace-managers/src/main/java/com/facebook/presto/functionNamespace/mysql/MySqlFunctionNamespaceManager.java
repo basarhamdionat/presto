@@ -85,6 +85,12 @@ public class MySqlFunctionNamespaceManager
         this.jdbi = requireNonNull(jdbi, "jdbi is null");
         this.functionNamespaceDao = requireNonNull(functionNamespaceDao, "functionNamespaceDao is null");
         this.functionNamespaceDaoClass = requireNonNull(functionNamespaceDaoClass, "functionNamespaceDaoClass is null");
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+        }
+        catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     @PostConstruct
